@@ -42,25 +42,26 @@ broker/
 ## MQTT notification LED
 
 The router's charge LED is actually two LEDs — `bat1` (red) and `batl2` (green) under
-`/sys/class/leds/`. The broker repurposes them as a notify light:
+`/sys/class/leds/`. The broker repurposes them:
 
-- **green** while at least one client is connected, **off** when none;
-- publish to the topic **`led`** to override it:
-  - `green` / `red` / `off` — solid colour (sticky; stays until you change it)
-  - `auto` — go back to the connected-clients behaviour
-  - `blink` / `alert` — flash red a few times, then return
-  - `ok` / `blink:green` — flash green
+- **flashes red** whenever a message passes through the broker — either direction (a client
+  publishes in via `OnPublish`, or the broker delivers out via `OnPublished`);
+- between flashes it's **green** while at least one client is connected, **off** when none;
+- publish to the topic **`led`** to override the base colour: `green` / `red` / `off` / `auto`;
 - it never lights both channels at once (no yellow).
 
-A background ticker rewrites the chosen colour every ~1.5 s, because the firmware's own
-battery-charge driver keeps trying to take these LEDs back. The two paths and the topic are
-overridable with the `LED_RED`, `LED_GREEN`, and `LED_TOPIC` env vars. It's all in
-`broker/main.go` (a ~40-line mochi hook).
+A fast ticker (~60 ms) reads an enable flag and rewrites the colour, so the firmware's own
+battery-charge driver can't steal the LEDs back. A web toggle (`cgi-bin/ledcfg` → `led.conf`
+`ENABLED=0/1`) turns the whole thing on/off — **off** hands the LEDs back to the normal battery
+indication. The two paths, the topic, and the config file are overridable with the `LED_RED`,
+`LED_GREEN`, `LED_TOPIC`, and `LED_CONF` env vars. It's all in `broker/main.go` (a small mochi hook).
 
 ```sh
-mosquitto_pub -h <router-ip> -t led -m red     # solid red alert
-mosquitto_pub -h <router-ip> -t led -m blink   # flash red, then back to normal
-mosquitto_pub -h <router-ip> -t led -m auto    # back to the connected-clients colour
+# watch it flash red as messages flow:
+mosquitto_pub -h <router-ip> -t anything -m hi
+# force a colour / hand it back:
+mosquitto_pub -h <router-ip> -t led -m red
+mosquitto_pub -h <router-ip> -t led -m auto
 ```
 
 ## Reproduce it yourself

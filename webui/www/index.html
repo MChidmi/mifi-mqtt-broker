@@ -287,6 +287,9 @@ function drawRoot(){
      '<div class="row"><button class="btn" onclick="loadLeds()">Refresh</button></div></div>'+
    '<div class="card"><h2>MQTT Broker</h2><div id="mqttbox"><div class="empty"><span class="spin"></span></div></div>'+
      '<div class="row"><button class="btn acc" onclick="mqttAction(\'start\')">Start</button><button class="btn" onclick="mqttAction(\'stop\')">Stop</button><button class="btn" onclick="loadMqtt()">Refresh</button></div></div>'+
+   '<div class="card"><h2>Notification LED</h2>'+
+     '<div class="f sw" style="padding:14px 16px 4px"><label style="margin:0">Use battery LED for MQTT notifications</label><input type="checkbox" id="led_en" onchange="ledCfgToggle()"></div>'+
+     '<div class="note" style="padding:0 16px 12px">On: flashes <b>red</b> on message traffic (either direction) and glows green while a client is connected. Off: the LED shows battery charge as normal.</div></div>'+
    '<div class="card"><h2>Raw API Console</h2>'+
      '<div class="note" style="padding:10px 16px 0">Send any modem command. Params is JSON merged into the request (e.g. for change password: cmdid <b>changepwd</b>, params <code>{"params":{"oldpwd":"x","newpwd":"y"}}</code>).</div>'+
      '<div class="f" style="padding:0 16px"><label>cmdid</label><input id="rawcmd" type="text" placeholder="getapninfo"></div>'+
@@ -296,8 +299,10 @@ function drawRoot(){
    '<div class="card"><h2>Power</h2><div class="row">'+
      '<button class="btn danger" onclick="rebootApi()">Reboot modem</button>'+
      '<button class="btn" onclick="logout()">Sign out</button></div></div>';
-  sysInfo();loadLeds();loadMqtt();
+  sysInfo();loadLeds();loadMqtt();loadLedCfg();
 }
+function loadLedCfg(){fetch('cgi-bin/ledcfg',{headers:{'Authorization':session}}).then(function(r){return r.json()}).then(function(d){var el=$('#led_en');if(el&&d&&d.enabled!=null)el.checked=String(d.enabled)==='1'}).catch(function(){})}
+function ledCfgToggle(){var on=$('#led_en').checked?1:0;fetch('cgi-bin/ledcfg',{method:'POST',headers:{'Authorization':session,'Content-Type':'application/json'},body:JSON.stringify({enabled:on})}).then(function(r){return r.json()}).then(function(d){toast(String(d.enabled)==='1'?'LED: MQTT notifications':'LED: battery charge')}).catch(function(){toast('Failed')})}
 function loadMqtt(){fetch('cgi-bin/mqtt',{headers:{'Authorization':session}}).then(function(r){return r.json()}).then(function(d){
   if(!d||d.error){$('#mqttbox').innerHTML='<div class="empty">unavailable</div>';return}
   var on=String(d.running)==='1';

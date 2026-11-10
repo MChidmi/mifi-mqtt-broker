@@ -1,11 +1,14 @@
-// Minimal MQTT broker for the modem's LAN (mochi-mqtt), with an MQTT-driven
-// notification LED. Static ARM binary for Android.
+// Minimal MQTT broker for the modem's LAN (mochi-mqtt), with an activity LED.
+// Static ARM binary for Android.
 //
-// LED: this router's charge LED is two colours — bat1 = red, batl2 = green.
-// Idle:   green when >=1 client is connected, off when none.
-// Notify: publish to topic "led" (LED_TOPIC) with one of:
-//           green | red | off | auto | blink | blink:green | ok | alert
-// A ticker re-asserts the LED so the firmware's battery driver can't steal it.
+// The router's charge LED is two colours — bat1 = red, batl2 = green.
+//   * It flashes RED whenever a message passes through the broker in either
+//     direction (a client publishes in, or the broker delivers out).
+//   * Between flashes it's GREEN while >=1 client is connected, otherwise off.
+//   * Publishing to topic "led" overrides the base colour: green|red|off|auto.
+//   * A web toggle writes LED_CONF ("ENABLED=0/1"); when disabled the broker
+//     stops touching the LEDs and leaves them to the firmware's battery driver.
+// A fast ticker re-asserts the LED so the firmware can't steal it.
 package main
 
 import (
@@ -15,6 +18,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -25,9 +29,10 @@ import (
 )
 
 var (
-	ledRed   = envOr("LED_RED", "/sys/class/leds/bat1/brightness")   // red channel
-	ledGreen = envOr("LED_GREEN", "/sys/class/leds/batl2/brightness") // green channel
+	ledRed   = envOr("LED_RED", "/sys/class/leds/bat1/brightness")
+	ledGreen = envOr("LED_GREEN", "/sys/class/leds/batl2/brightness")
 	ledTopic = envOr("LED_TOPIC", "led")
+	ledConf  = envOr("LED_CONF", "/data/local/tmp/webui/led.conf")
 )
 
 func envOr(k, d string) string {
@@ -39,7 +44,6 @@ func envOr(k, d string) string {
 
 func wled(path, v string) { _ = os.WriteFile(path, []byte(v), 0644) }
 
-// applyColor never lights both channels at once (no yellow).
 func applyColor(c string) {
 	switch c {
 	case "red":
@@ -48,21 +52,33 @@ func applyColor(c string) {
 	case "green":
 		wled(ledRed, "0")
 		wled(ledGreen, "255")
-	default: // off
+	default:
 		wled(ledRed, "0")
 		wled(ledGreen, "0")
 	}
 }
 
-type led struct {
-	mu       sync.Mutex
-	manual   bool
-	color    string
-	clients  int
-	blinking bool
+// notifyEnabled reads the web-settable flag. Missing file = enabled.
+func notifyEnabled() bool {
+	b, err := os.ReadFile(ledConf)
+	if err != nil {
+		return true
+	}
+	return !strings.Contains(string(b), "ENABLED=0")
 }
 
-func (l *led) want() string {
+var lastMsg atomic.Int64 // unix-nano of the most recent message, for the flash
+
+func touch() { lastMsg.Store(time.Now().UnixNano()) }
+
+type led struct {
+	mu      sync.Mutex
+	manual  bool
+	color   string
+	clients int
+}
+
+func (l *led) base() string {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.manual {
@@ -73,10 +89,8 @@ func (l *led) want() string {
 	}
 	return "off"
 }
-
-func (l *led) set(c string) { l.mu.Lock(); l.manual = true; l.color = c; l.mu.Unlock(); applyColor(c) }
-func (l *led) auto()        { l.mu.Lock(); l.manual = false; l.mu.Unlock(); applyColor(l.want()) }
-
+func (l *led) set(c string) { l.mu.Lock(); l.manual = true; l.color = c; l.mu.Unlock() }
+func (l *led) auto()        { l.mu.Lock(); l.manual = false; l.mu.Unlock() }
 func (l *led) client(n int) {
 	l.mu.Lock()
 	l.clients += n
@@ -84,29 +98,6 @@ func (l *led) client(n int) {
 		l.clients = 0
 	}
 	l.mu.Unlock()
-	applyColor(l.want())
-}
-
-func (l *led) blink(c string) {
-	l.mu.Lock()
-	if l.blinking {
-		l.mu.Unlock()
-		return
-	}
-	l.blinking = true
-	l.mu.Unlock()
-	go func() {
-		for i := 0; i < 6; i++ {
-			applyColor(c)
-			time.Sleep(160 * time.Millisecond)
-			applyColor("off")
-			time.Sleep(160 * time.Millisecond)
-		}
-		l.mu.Lock()
-		l.blinking = false
-		l.mu.Unlock()
-		applyColor(l.want())
-	}()
 }
 
 type ledHook struct {
@@ -114,27 +105,31 @@ type ledHook struct {
 	l *led
 }
 
-func (h *ledHook) ID() string { return "led-notify" }
+func (h *ledHook) ID() string { return "led-activity" }
 
 func (h *ledHook) Provides(b byte) bool {
-	return bytes.Contains([]byte{mqtt.OnPublish, mqtt.OnSessionEstablished, mqtt.OnDisconnect}, []byte{b})
+	return bytes.Contains([]byte{
+		mqtt.OnPublish, mqtt.OnPublished,
+		mqtt.OnSessionEstablished, mqtt.OnDisconnect,
+	}, []byte{b})
 }
 
+// incoming: a client published to the broker
 func (h *ledHook) OnPublish(cl *mqtt.Client, pk packets.Packet) (packets.Packet, error) {
+	touch()
 	if pk.TopicName == ledTopic {
 		switch strings.TrimSpace(strings.ToLower(string(pk.Payload))) {
 		case "red", "green", "off":
-			h.l.set(strings.ToLower(string(pk.Payload)))
+			h.l.set(strings.ToLower(strings.TrimSpace(string(pk.Payload))))
 		case "auto":
 			h.l.auto()
-		case "blink", "blink:red", "alert":
-			h.l.blink("red")
-		case "blink:green", "ok":
-			h.l.blink("green")
 		}
 	}
 	return pk, nil
 }
+
+// outgoing: the broker delivered a message to a subscriber
+func (h *ledHook) OnPublished(cl *mqtt.Client, pk packets.Packet) { touch() }
 
 func (h *ledHook) OnSessionEstablished(cl *mqtt.Client, pk packets.Packet) { h.l.client(1) }
 func (h *ledHook) OnDisconnect(cl *mqtt.Client, err error, expire bool)    { h.l.client(-1) }
@@ -153,24 +148,31 @@ func main() {
 	if err := server.AddHook(new(auth.AllowHook), nil); err != nil {
 		log.Fatal(err)
 	}
-
 	l := &led{}
 	if err := server.AddHook(&ledHook{l: l}, nil); err != nil {
 		log.Fatal(err)
 	}
 	applyColor("off")
 
-	// Re-assert the LED periodically so the firmware's charge-LED driver
-	// doesn't overwrite our colour.
+	// Drive the LED: flash red on recent traffic, else the base colour.
+	// Re-reads the enable flag so a web toggle takes effect live.
 	go func() {
-		t := time.NewTicker(1500 * time.Millisecond)
+		t := time.NewTicker(60 * time.Millisecond)
 		defer t.Stop()
+		prevEnabled := true
 		for range t.C {
-			l.mu.Lock()
-			blinking := l.blinking
-			l.mu.Unlock()
-			if !blinking {
-				applyColor(l.want())
+			if !notifyEnabled() {
+				if prevEnabled {
+					applyColor("off") // release the LEDs back to the firmware
+				}
+				prevEnabled = false
+				continue
+			}
+			prevEnabled = true
+			if time.Since(time.Unix(0, lastMsg.Load())) < 130*time.Millisecond {
+				applyColor("red")
+			} else {
+				applyColor(l.base())
 			}
 		}
 	}()
@@ -183,13 +185,12 @@ func main() {
 			log.Printf("websocket listener failed: %v", err)
 		}
 	}
-
 	go func() {
 		if err := server.Serve(); err != nil {
 			log.Fatal(err)
 		}
 	}()
-	log.Printf("mqtt broker tcp=%s ws=%s  (LED notify on topic %q: green|red|off|auto|blink|ok)", tcpAddr, wsAddr, ledTopic)
+	log.Printf("mqtt broker tcp=%s ws=%s  (LED: flash red on traffic; base green when connected; topic %q overrides)", tcpAddr, wsAddr, ledTopic)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)

@@ -41,10 +41,11 @@ Real screenshots from the UI running on the router (device IDs blurred on the st
   password, SMS viewer, and a few root tools.
 - **Battery "don't cook yourself" mode** — keeps the always-plugged battery bouncing between 60% and
   80% instead of sitting at 100%.
-- **MQTT-driven notification LED** — the router's charge LED (red + green) doubles as an indicator:
-  it's **green** while a client is connected, and any device can flash it by publishing to the topic
-  `led` (`green` / `red` / `off` / `blink` / `ok`). A sticky `red` makes a nice "something's wrong"
-  alert. (No yellow — it never lights both at once.)
+- **Traffic/notification LED** — the router's charge LED (red + green) doubles as an activity light:
+  it **flashes red whenever a message passes through the broker** (either direction), glows **green**
+  while a client is connected, and can be overridden by publishing to the topic `led`
+  (`green` / `red` / `off` / `auto`). A web toggle switches the LED between this and its normal
+  battery-charge indication. (No yellow — it never lights both at once.)
 - **MQTT + LED + system panels** under a Root tab, all gated behind the router's own login.
 
 ## Connecting a device
