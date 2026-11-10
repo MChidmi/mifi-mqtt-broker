@@ -1,0 +1,24 @@
+#!/data/local/tmp/webui/busybox sh
+# API proxy CGI -> forwards POST body to himiwebserver (127.0.0.1:8000/himiapi/json)
+BB=/data/local/tmp/webui/busybox
+len=${CONTENT_LENGTH:-0}
+auth=$HTTP_AUTHORIZATION
+body=$($BB head -c "$len" 2>/dev/null)
+
+printf 'Content-Type: application/json\r\n'
+printf 'Cache-Control: no-store\r\n'
+printf '\r\n'
+
+{
+  printf 'POST /himiapi/json HTTP/1.0\r\n'
+  printf 'Host: 127.0.0.1\r\n'
+  printf 'Content-Type: application/json;charset=UTF-8\r\n'
+  printf 'Authorization: %s\r\n' "$auth"
+  printf 'Content-Length: %s\r\n' "$len"
+  printf 'Connection: close\r\n'
+  printf '\r\n'
+  printf '%s' "$body"
+} | $BB timeout 8 $BB nc 127.0.0.1 8000 2>/dev/null | $BB awk '
+  seen{ line=$0; sub(/\r$/,"",line);
+        if(line!="" && line !~ /^[0-9a-fA-F]+$/) printf "%s", line }
+  /^\r?$/{ seen=1 }'

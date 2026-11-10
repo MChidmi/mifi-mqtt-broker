@@ -1,0 +1,14 @@
+# build artifacts / binaries (don't commit)
+mqttbroker
+mqttbroker-arm
+*.apk
+busybox*
+# toolchains / deps
+go/
+gopath/
+node_modules/
+# device backups / firmware (never publish)
+backup/
+*.mbn
+*.bin
+*.img

@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Modem</title>
+<style>
+:root{--bg:#0f1115;--card:#171a21;--card2:#1d212b;--line:#272c38;--fg:#e8ebf2;--mut:#9aa3b3;--acc:#4c8dff;--ok:#39c46e;--warn:#f5a623;--err:#ff5c5c}
+@media (prefers-color-scheme:light){:root{--bg:#f3f5f9;--card:#fff;--card2:#f6f8fc;--line:#e4e8f0;--fg:#141821;--mut:#5c6678;--acc:#2f6fed}}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding-bottom:74px}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:10px;padding:12px 16px;max-width:720px;margin:0 auto}
+.bar .op{font-weight:600}.bar .sp{flex:1}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:1px}
+.dot.on{background:var(--ok)}.dot.off{background:var(--err)}
+.sig{display:inline-flex;align-items:flex-end;gap:2px;height:16px}
+.sig i{width:3px;background:var(--line);border-radius:1px}.sig i.a{background:var(--acc)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:14px 0;overflow:hidden}
+.card h2{margin:0;padding:13px 16px;font-size:13px;letter-spacing:.3px;text-transform:uppercase;color:var(--mut);border-bottom:1px solid var(--line)}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line)}
+.kv:last-child{border-bottom:0}.kv .k{color:var(--mut)}.kv .v{text-align:right;font-variant-numeric:tabular-nums;word-break:break-word}
+.big{display:flex;gap:10px;padding:14px 16px}
+.tile{flex:1;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px}
+.tile .n{font-size:22px;font-weight:650}.tile .l{color:var(--mut);font-size:12px;margin-top:2px}
+.dev,.sms{padding:11px 16px;border-bottom:1px solid var(--line)}.dev:last-child,.sms:last-child{border-bottom:0}
+.dev{display:flex;align-items:center;gap:10px}.dev .nm{font-weight:550}.dev .meta{color:var(--mut);font-size:12.5px}
+.sms .top{display:flex;justify-content:space-between;gap:10px;margin-bottom:3px}.sms .addr{font-weight:600}.sms .tm{color:var(--mut);font-size:12px;white-space:nowrap}.sms .body{white-space:pre-wrap;word-break:break-word}
+.empty{padding:24px 16px;text-align:center;color:var(--mut)}
+button,.btn{font:inherit;border:1px solid var(--line);background:var(--card2);color:var(--fg);padding:10px 14px;border-radius:10px;cursor:pointer}
+button:active{transform:translateY(1px)}
+.btn.acc{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.danger{color:var(--err);border-color:var(--err)}
+.row{display:flex;gap:10px;padding:12px 16px;flex-wrap:wrap}.row button{flex:1;min-width:110px}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;border-radius:0;background:none;color:var(--mut);padding:9px 2px 11px;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav button.on{color:var(--acc)}nav svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.9}
+.hidden{display:none}
+/* forms */
+.acc-h{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--line);font-weight:550}
+.acc-h .chev{color:var(--mut);transition:.2s}.acc-h.open .chev{transform:rotate(90deg)}
+.acc-b{padding:4px 16px 12px}
+.f{margin:12px 0}
+.f label{display:block;color:var(--mut);font-size:12.5px;margin-bottom:5px}
+.f input[type=text],.f input[type=number],.f input[type=password],.f textarea,.f select{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:9px;color:var(--fg);font:inherit}
+.f textarea{min-height:70px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+.sw{display:flex;align-items:center;justify-content:space-between}
+.sw input{width:42px;height:24px;-webkit-appearance:none;appearance:none;background:var(--line);border-radius:12px;position:relative;cursor:pointer;outline:none}
+.sw input:checked{background:var(--acc)}
+.sw input:before{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.18s}
+.sw input:checked:before{left:21px}
+.term{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;white-space:pre-wrap;word-break:break-word;background:#0a0c10;color:#cfe3ff;border:1px solid var(--line);border-radius:10px;padding:12px;max-height:46vh;overflow:auto;margin:12px 16px}
+@media (prefers-color-scheme:light){.term{background:#0d1117;color:#cfe3ff}}
+.toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:var(--card2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;opacity:0;transition:.25s;pointer-events:none;z-index:9}.toast.show{opacity:1}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--acc);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}@keyframes s{to{transform:rotate(360deg)}}
+#login{max-width:360px;margin:12vh auto;padding:0 20px}#login h1{font-size:19px;text-align:center}
+#login input{width:100%;padding:12px 14px;margin:8px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--fg);font:inherit}
+#login .btn{width:100%;margin-top:6px;text-align:center}
+.err{color:var(--err);text-align:center;min-height:18px;font-size:13.5px;margin-top:8px}
+.note{color:var(--mut);font-size:12px;padding:0 16px 10px}
+</style>
+</head>
+<body>
+
+<section id="login">
+  <h1>Modem Console</h1>
+  <input id="u" placeholder="Username" autocomplete="username" value="admin">
+  <input id="p" type="password" placeholder="Password" autocomplete="current-password">
+  <div class="btn acc" onclick="doLogin()">Sign in</div>
+  <div class="err" id="loginErr"></div>
+</section>
+
+<div id="app" class="hidden">
+  <header><div class="bar">
+    <span class="op" id="hOp">—</span><span class="sig" id="hSig"></span>
+    <span id="hNet" style="color:var(--mut);font-size:13px"></span>
+    <span class="sp"></span><span id="hBat" style="color:var(--mut);font-size:13px"></span><span id="hState"><span class="dot off"></span></span>
+  </div></header>
+  <div class="wrap">
+    <div id="tab-status"></div>
+    <div id="tab-devices" class="hidden"></div>
+    <div id="tab-sms" class="hidden"></div>
+    <div id="tab-settings" class="hidden"></div>
+    <div id="tab-root" class="hidden"></div>
+  </div>
+</div>
+
+<nav id="nav" class="hidden">
+  <button data-t="status" class="on" onclick="go('status')"><svg viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>Status</button>
+  <button data-t="devices" onclick="go('devices')"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg>Devices</button>
+  <button data-t="sms" onclick="go('sms')"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 3z"/></svg>SMS</button>
+  <button data-t="settings" onclick="go('settings')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>Settings</button>
+  <button data-t="root" onclick="go('root')"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M7 9l3 3-3 3M13 15h4"/></svg>Root</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+var $=function(s){return document.querySelector(s)};
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function humanize(k){return String(k).replace(/_/g,' ').replace(/([a-z])([A-Z])/g,'$1 $2').replace(/\b\w/g,function(c){return c.toUpperCase()})}
+var toastT;function toast(m){var t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('show')},2300)}
+function pick(o){for(var i=1;i<arguments.length;i++){var w=arguments[i].toLowerCase();for(var k in o){if(k.toLowerCase()===w&&o[k]!=null&&o[k]!=='')return o[k]}}return null}
+
+var session=sessionStorage.getItem('session')||'';
+var expired=false;
+function sessionExpired(){if(expired||!session)return;expired=true;session='';sessionStorage.removeItem('session');try{toast('Session ended — signing out')}catch(e){}setTimeout(function(){location.reload()},700)}
+function api(cmdid,extra){
+  var body=Object.assign({cmdid:cmdid,sessionId:session},extra||{});
+  return fetch('cgi-bin/api',{method:'POST',headers:{'Content-Type':'application/json;charset=UTF-8','Authorization':session},body:JSON.stringify(body)}).then(function(r){return r.json()}).then(function(d){
+    if(d&&(d.reply==='SessionOut'||d.reply==='sessionout'||d.error==='unauthorized'))sessionExpired();
+    return d;
+  });
+}
+function sysinfo(){return fetch('cgi-bin/sysinfo',{headers:{'Authorization':session}}).then(function(r){return r.text()})}
+
+function doLogin(){
+  var u=$('#u').value.trim(),p=$('#p').value;$('#loginErr').innerHTML='<span class="spin"></span>';session='';
+  fetch('cgi-bin/api',{method:'POST',headers:{'Content-Type':'application/json;charset=UTF-8'},body:JSON.stringify({cmdid:'login',username:u,password:p})})
+   .then(function(r){return r.json()}).then(function(d){
+      var s=d.session||d.sessionId;
+      if(d.reply==='ok'&&s){session=s;sessionStorage.setItem('session',s);showApp()}
+      else $('#loginErr').textContent='Login failed — check password';
+   }).catch(function(){$('#loginErr').textContent='Cannot reach modem'});
+}
+function logout(){api('logout').finally(function(){session='';sessionStorage.removeItem('session');location.reload()})}
+
+function sigBars(v){var n=0;v=parseInt(v,10);if(!isNaN(v)){if(v>=0&&v<=5)n=v;else if(v<0)n=v>=-70?5:v>=-85?4:v>=-100?3:v>=-110?2:1;else n=Math.max(0,Math.min(5,Math.round(v/20)))}var h=[6,9,12,14,16],o='';for(var i=0;i<5;i++)o+='<i class="'+(i<n?'a':'')+'" style="height:'+h[i]+'px"></i>';return o}
+function kvCard(t,o,only){if(!o||typeof o!=='object')return '';var keys=only||Object.keys(o);var r=keys.filter(function(k){return o[k]!=null&&typeof o[k]!=='object'&&String(o[k])!==''}).map(function(k){return '<div class="kv"><span class="k">'+esc(humanize(k))+'</span><span class="v">'+esc(o[k])+'</span></div>'}).join('');return r?'<div class="card"><h2>'+esc(t)+'</h2>'+r+'</div>':''}
+
+var S={overview:{},status:{},sysinfo:{}};
+function refresh(){Promise.all([
+  api('getoverview').then(function(d){S.overview=d.params||d||{}}).catch(function(){}),
+  api('getallstatus').then(function(d){S.status=d.params||d||{}}).catch(function(){}),
+  api('getsysinfo').then(function(d){S.sysinfo=d.params||d||{}}).catch(function(){})
+]).then(function(){if($('#app').classList.contains('hidden'))return;drawHeader();if(cur==='status')drawStatus()});batt()}
+function batt(){fetch('cgi-bin/bat',{headers:{'Authorization':session}}).then(function(r){return r.json()}).then(function(d){
+  if(d&&d.pct!=null){var ch=d.status&&/charg/i.test(d.status)?'⚡ ':'';$('#hBat').textContent=ch+d.pct+'%'}else $('#hBat').textContent=''}).catch(function(){})}
+function drawHeader(){var o=Object.assign({},S.status,S.overview,S.sysinfo);
+  $('#hOp').textContent=pick(o,'operator','plmn','carrier','netname')||'—';
+  $('#hNet').textContent=pick(o,'networktype','nettype','rat','mode')||'';
+  $('#hSig').innerHTML=sigBars(pick(o,'signal','rssi','rsrp','csq','signallevel'));
+  var on=/1|online|connect|regist|ok|true/i.test(String(pick(o,'onlinestate','ltestate','netstate','connectstatus','online','regstate')));
+  $('#hState').innerHTML='<span class="dot '+(on?'on':'off')+'"></span>';}
+
+function drawStatus(){var o=Object.assign({},S.sysinfo,S.status,S.overview);
+  var h='<div class="card"><h2>Connection</h2><div class="big">'+
+    '<div class="tile"><div class="n">'+esc(pick(o,'networktype','nettype','rat','mode')||'—')+'</div><div class="l">Network</div></div>'+
+    '<div class="tile"><div class="n">'+esc(pick(o,'signal','rssi','rsrp','csq')||'—')+'</div><div class="l">Signal</div></div></div>'+
+    '<div class="kv"><span class="k">WAN IP</span><span class="v">'+esc(pick(o,'wanip','ipaddr','ip','ipv4')||'—')+'</span></div>'+
+    '<div class="kv"><span class="k">Uptime</span><span class="v">'+esc(pick(o,'runtime','uptime','systime')||'—')+'</span></div></div>';
+  h+=kvCard('Overview',S.overview)+kvCard('Status',S.status)+kvCard('System',S.sysinfo);
+  $('#tab-status').innerHTML=h||'<div class="empty">No data</div>'}
+
+function drawDevices(){$('#tab-devices').innerHTML='<div class="card"><h2>Connected Devices <span class="spin"></span></h2></div>';
+  api('getconnectedsta').then(function(d){var p=d.params||d||{};var list=Array.isArray(p)?p:(p.devlist||p.list||p.sta||[]);
+    var rows=(list||[]).map(function(x){return '<div class="dev"><div style="flex:1"><div class="nm">'+esc(pick(x,'name','hostname','devname','host')||'Device')+'</div><div class="meta">'+esc(pick(x,'ip','ipaddr')||'')+' · '+esc(pick(x,'mac','macaddr')||'')+'</div></div><span class="meta">'+esc(pick(x,'type','typename')||'')+'</span></div>'}).join('');
+    $('#tab-devices').innerHTML='<div class="card"><h2>Connected Devices ('+(list?list.length:0)+')</h2>'+(rows||'<div class="empty">No devices connected</div>')+'</div>'})
+   .catch(function(){$('#tab-devices').innerHTML='<div class="card"><h2>Devices</h2><div class="empty">Failed to load</div></div>'})}
+
+function drawSms(){$('#tab-sms').innerHTML='<div class="card"><h2>Messages <span class="spin"></span></h2></div>';
+  fetch('cgi-bin/sms').then(function(r){return r.json()}).then(function(d){var m=d.messages||[];
+    var rows=m.map(function(x){var tm=x.date&&/^\d+$/.test(x.date)?new Date(parseInt(x.date,10)).toLocaleString():(x.date||'');var dir=String(x.type)==='2'?' ↑':'';
+      return '<div class="sms"><div class="top"><span class="addr">'+esc(x.address||'Unknown')+esc(dir)+'</span><span class="tm">'+esc(tm)+'</span></div><div class="body">'+esc(x.body||'')+'</div></div>'}).join('');
+    $('#tab-sms').innerHTML='<div class="card"><h2>Messages ('+m.length+')</h2>'+(rows||'<div class="empty">No messages'+(d.sim===false?' — no SIM card detected':'')+'</div>')+'</div>'})
+   .catch(function(){$('#tab-sms').innerHTML='<div class="card"><h2>Messages</h2><div class="empty">SMS reader unavailable</div></div>'})}
+
+//// ---------- SETTINGS (editable) ----------
+var SECTIONS=[
+  {id:'wifi',t:'Wi-Fi',get:'getwifiinfo',set:'setwifiinfo',toggle:{on:'openwifiap',off:'closewifiap',label:'Wi-Fi access point'}},
+  {id:'net',t:'Mobile Network',get:'getnetworkmode',set:'setnetworkmode',selects:{netmode:[['0','4G / 3G (auto)'],['1','4G only'],['2','3G only']]}},
+  {id:'apn',t:'APN',get:'getapninfo',set:'setcurrentapn',dig:['apncur',0]},
+  {id:'dhcp',t:'DHCP / LAN',get:'getdhcpinfo',set:'setdhcpinfo'},
+  {id:'con',t:'Connection Keep-alive',get:'getcondetect',set:'setcondetect'},
+  {id:'usb',t:'USB Tethering',get:'gethimiusbtether',set:'sethimiusbtether'}
+];
+var SEC={}; // loaded data per section
+function dig(o,path){if(!path)return o;for(var i=0;i<path.length;i++){if(o==null)return null;o=o[path[i]]}return o}
+function isBool(v){return v===0||v===1||v==='0'||v==='1'||v===true||v===false}
+function field(key,val,sel){
+  if(sel){var opts=sel.map(function(o){return '<option value="'+esc(o[0])+'"'+(String(val)===String(o[0])?' selected':'')+'>'+esc(o[1])+'</option>'}).join('');
+    return '<div class="f"><label>'+esc(humanize(key))+'</label><select data-k="'+esc(key)+'">'+opts+'</select></div>'}
+  if(isBool(val)){var on=(val==='1'||val===1||val===true);
+    return '<div class="f sw"><label style="margin:0">'+esc(humanize(key))+'</label><input type="checkbox" data-k="'+esc(key)+'" data-bool="1" '+(on?'checked':'')+'></div>'}
+  var num=(typeof val==='number')||(/^-?\d+$/.test(String(val)));
+  return '<div class="f"><label>'+esc(humanize(key))+'</label><input type="'+(num?'number':'text')+'" data-k="'+esc(key)+'" value="'+esc(val)+'"></div>'
+}
+function drawSettings(){
+  var h='<div class="card" id="battcard"><h2>Battery Care</h2><div class="empty"><span class="spin"></span></div></div>';
+  SECTIONS.forEach(function(s){
+    h+='<div class="card"><div class="acc-h" onclick="toggleSec(\''+s.id+'\')"><span>'+esc(s.t)+'</span><span class="chev">▸</span></div>'+
+       '<div class="acc-b hidden" id="secb_'+s.id+'"></div></div>';
+  });
+  h+='<div class="card"><h2>Web Login Password</h2>'+
+     '<div class="f" style="padding:0 16px"><label>Current password</label><input id="pw_old" type="password" autocomplete="current-password"></div>'+
+     '<div class="f" style="padding:0 16px"><label>New password</label><input id="pw_new" type="password" autocomplete="new-password"></div>'+
+     '<div class="f" style="padding:0 16px"><label>Confirm new password</label><input id="pw_cf" type="password" autocomplete="new-password"></div>'+
+     '<div class="row" style="padding:2px 16px 14px"><button class="btn acc" onclick="changePwd()">Change password</button></div></div>';
+  h+='<div class="note">Edit a value and press Save. Changes are applied on the modem immediately.</div>';
+  $('#tab-settings').innerHTML=h;
+  loadBatt();
+}
+function changePwd(){
+  var o=$('#pw_old').value,n=$('#pw_new').value,c=$('#pw_cf').value;
+  if(!n){toast('Enter a new password');return}
+  if(n!==c){toast('New passwords do not match');return}
+  api('changepwd',{params:{oldPwd:o,newPwd:n,confirmPwd:c}}).then(function(r){
+    if(r&&r.reply==='ok'){toast('Password changed — please sign in again');setTimeout(logout,1300)}
+    else toast('Failed: '+(r&&(r.reply||'check current password')));
+  }).catch(function(){toast('Change failed')});
+}
+function loadBatt(){fetch('cgi-bin/battctl',{headers:{'Authorization':session}}).then(function(r){return r.json()}).then(renderBatt).catch(function(){$('#battcard').innerHTML='<h2>Battery Care</h2><div class="empty">unavailable</div>'})}
+function renderBatt(d){
+  if(!d||d.capacity==null){$('#battcard').innerHTML='<h2>Battery Care</h2><div class="empty">unavailable</div>';return}
+  var on=String(d.enabled)==='1';
+  $('#battcard').innerHTML='<h2>Battery Care</h2>'+
+    '<div class="kv"><span class="k">Level</span><span class="v">'+esc(d.capacity)+'% · '+esc(d.status)+'</span></div>'+
+    '<div class="kv"><span class="k">Charging</span><span class="v">'+(String(d.charging_enabled)==='1'?'enabled':'paused ⏸')+'</span></div>'+
+    '<div class="acc-b">'+
+      '<div class="f sw"><label style="margin:0">Limit charging (auto stop / resume)</label><input type="checkbox" id="bt_en"'+(on?' checked':'')+'></div>'+
+      '<div class="f"><label>Stop charging at (%)</label><input type="number" id="bt_hi" value="'+esc(d.high)+'" min="20" max="100"></div>'+
+      '<div class="f"><label>Resume charging at (%)</label><input type="number" id="bt_lo" value="'+esc(d.low)+'" min="5" max="99"></div>'+
+      '<div class="note" style="padding:0 0 8px">Keeps the built-in battery between these levels so it is not held at 100% on permanent wall power.</div>'+
+      '<div class="row" style="padding:2px 0"><button class="btn acc" onclick="saveBatt()">Save</button><button class="btn" onclick="loadBatt()">Refresh</button></div></div>';
+}
+function saveBatt(){
+  var b={enabled:$('#bt_en').checked?1:0,high:parseInt($('#bt_hi').value,10)||80,low:parseInt($('#bt_lo').value,10)||60};
+  if(b.low>=b.high){toast('Resume % must be below Stop %');return}
+  fetch('cgi-bin/battctl',{method:'POST',headers:{'Authorization':session,'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json()}).then(function(d){renderBatt(d);toast(String(d.enabled)==='1'?'Battery limiter ON':'Battery limiter off')}).catch(function(){toast('Save failed')});
+}
+function toggleSec(id){
+  var b=$('#secb_'+id);var hd=b.previousElementSibling;
+  var open=!b.classList.contains('hidden');
+  if(open){b.classList.add('hidden');hd.classList.remove('open');return}
+  b.classList.remove('hidden');hd.classList.add('open');loadSec(id);
+}
+function loadSec(id){
+  var s=SECTIONS.filter(function(x){return x.id===id})[0];var b=$('#secb_'+id);
+  b.innerHTML='<div class="empty"><span class="spin"></span></div>';
+  api(s.get).then(function(d){
+    var params=(d&&d.params!=null)?d.params:d;
+    var obj=s.dig?dig(params,s.dig):params;
+    SEC[id]={raw:params,obj:obj,sec:s};
+    if(obj==null||typeof obj!=='object'){b.innerHTML='<div class="empty">No editable fields returned</div>';return}
+    var inner='';
+    if(s.toggle)inner+='<div class="f"><div class="note" style="padding:0 0 6px">'+esc(s.toggle.label)+'</div><div class="row" style="padding:0">'+
+      '<button class="btn acc" onclick="secToggle(\''+id+'\',1)">Turn On</button><button class="btn" onclick="secToggle(\''+id+'\',0)">Turn Off</button></div></div>';
+    var keys=Object.keys(obj).filter(function(k){return typeof obj[k]!=='object'});
+    if(!keys.length)inner+='<div class="empty">No scalar fields</div>';
+    keys.forEach(function(k){inner+=field(k,obj[k],s.selects&&s.selects[k])});
+    inner+='<div class="row" style="padding:12px 0 2px"><button class="btn acc" onclick="saveSec(\''+id+'\')">Save</button>'+
+           '<button class="btn" onclick="loadSec(\''+id+'\')">Reload</button></div>';
+    b.innerHTML=inner;
+  }).catch(function(){b.innerHTML='<div class="empty">Failed to load</div>'});
+}
+function secToggle(id,on){var s=SEC[id].sec;api(on?s.toggle.on:s.toggle.off).then(function(r){toast(r&&r.reply==='ok'?(on?'Turned on':'Turned off'):'Failed: '+(r&&r.reply))}).catch(function(){toast('Failed')})}
+function coerce(orig,inp){
+  if(inp.getAttribute('data-bool')){
+    if(typeof orig==='number')return inp.checked?1:0;
+    if(typeof orig==='boolean')return inp.checked;
+    return inp.checked?'1':'0';            // preserve "0"/"1" string style
+  }
+  var v=inp.value;
+  if(typeof orig==='number')return v===''?orig:(/\./.test(v)?parseFloat(v):parseInt(v,10));
+  return v;
+}
+function saveSec(id){
+  var st=SEC[id];if(!st)return;var s=st.sec;
+  var edited=JSON.parse(JSON.stringify(st.obj));
+  Array.prototype.forEach.call(document.querySelectorAll('#secb_'+id+' [data-k]'),function(inp){
+    var k=inp.getAttribute('data-k'); edited[k]=coerce(st.obj[k],inp);
+  });
+  api(s.set,{params:edited}).then(function(r){
+    if(r&&r.reply==='ok')toast('Saved ✓');
+    else toast('Failed: '+(r&&(r.reply||JSON.stringify(r))));
+  }).catch(function(){toast('Save failed')});
+}
+
+//// ---------- ROOT ----------
+function drawRoot(){
+  $('#tab-root').innerHTML=
+   '<div class="card"><h2>System (root)</h2><div id="sysinfo" class="term" style="margin:12px 16px">loading…</div>'+
+     '<div class="row"><button class="btn" onclick="sysInfo()">Refresh</button></div></div>'+
+   '<div class="card"><h2>LED Test</h2>'+
+     '<div class="note" style="padding:10px 16px 0">Toggle the indicator LEDs. The firmware re-drives them on network / charge changes, so changes may not stick.</div>'+
+     '<div id="ledlist"><div class="empty"><span class="spin"></span></div></div>'+
+     '<div class="row"><button class="btn" onclick="loadLeds()">Refresh</button></div></div>'+
+   '<div class="card"><h2>MQTT Broker</h2><div id="mqttbox"><div class="empty"><span class="spin"></span></div></div>'+
+     '<div class="row"><button class="btn acc" onclick="mqttAction(\'start\')">Start</button><button class="btn" onclick="mqttAction(\'stop\')">Stop</button><button class="btn" onclick="loadMqtt()">Refresh</button></div></div>'+
+   '<div class="card"><h2>Raw API Console</h2>'+
+     '<div class="note" style="padding:10px 16px 0">Send any modem command. Params is JSON merged into the request (e.g. for change password: cmdid <b>changepwd</b>, params <code>{"params":{"oldpwd":"x","newpwd":"y"}}</code>).</div>'+
+     '<div class="f" style="padding:0 16px"><label>cmdid</label><input id="rawcmd" type="text" placeholder="getapninfo"></div>'+
+     '<div class="f" style="padding:0 16px"><label>extra JSON (optional)</label><textarea id="rawparams" placeholder="{}"></textarea></div>'+
+     '<div class="row"><button class="btn acc" onclick="runRaw()">Send</button></div>'+
+     '<div id="rawout" class="term">(response here)</div></div>'+
+   '<div class="card"><h2>Power</h2><div class="row">'+
+     '<button class="btn danger" onclick="rebootApi()">Reboot modem</button>'+
+     '<button class="btn" onclick="logout()">Sign out</button></div></div>';
+  sysInfo();loadLeds();loadMqtt();
+}
+function loadMqtt(){fetch('cgi-bin/mqtt',{headers:{'Authorization':session}}).then(function(r){return r.json()}).then(function(d){
+  if(!d||d.error){$('#mqttbox').innerHTML='<div class="empty">unavailable</div>';return}
+  var on=String(d.running)==='1';
+  $('#mqttbox').innerHTML='<div class="kv"><span class="k">Status</span><span class="v">'+(on?'<span style="color:var(--ok)">running</span>':'stopped')+'</span></div>'+
+    '<div class="kv"><span class="k">TCP</span><span class="v">'+esc(d.host)+':'+esc(d.tcp)+'</span></div>'+
+    '<div class="kv"><span class="k">WebSocket</span><span class="v">'+esc(d.host)+':'+esc(d.ws)+'</span></div>'+
+    '<div class="kv"><span class="k">Connected clients</span><span class="v">'+esc(d.clients)+'</span></div>'+
+    '<div class="note" style="padding:10px 16px 2px">Point local devices at <b>mqtt://'+esc(d.host)+':'+esc(d.tcp)+'</b> (no auth, LAN only). Browser/JS clients use ws://'+esc(d.host)+':'+esc(d.ws)+'.</div>';
+}).catch(function(){$('#mqttbox').innerHTML='<div class="empty">unavailable</div>'})}
+function mqttAction(a){fetch('cgi-bin/mqtt',{method:'POST',headers:{'Authorization':session,'Content-Type':'application/json'},body:JSON.stringify({action:a})}).then(function(r){return r.json()}).then(function(){loadMqtt();toast('MQTT '+a)}).catch(function(){toast('MQTT '+a+' failed')})}
+function loadLeds(){fetch('cgi-bin/led',{headers:{'Authorization':session}}).then(function(r){return r.json()}).then(function(d){
+  var leds=(d&&d.leds)||[];
+  var rows=leds.map(function(l){var on=l.brightness>0;
+    return '<div class="dev"><div style="flex:1"><div class="nm">'+esc(l.name)+'</div><div class="meta">'+(on?'on':'off')+' · '+esc(l.brightness)+'/'+esc(l.max)+'</div></div>'+
+      '<button class="btn" style="flex:0;min-width:52px" onclick="ledSet(\''+esc(l.name)+'\','+(l.max||255)+')">On</button>'+
+      '<button class="btn" style="flex:0;min-width:52px;margin-left:6px" onclick="ledSet(\''+esc(l.name)+'\',0)">Off</button></div>'}).join('');
+  $('#ledlist').innerHTML=rows||'<div class="empty">no LEDs</div>';
+}).catch(function(){$('#ledlist').innerHTML='<div class="empty">unavailable</div>'})}
+function ledSet(n,v){fetch('cgi-bin/led',{method:'POST',headers:{'Authorization':session,'Content-Type':'application/json'},body:JSON.stringify({led:n,value:v})}).then(function(r){return r.json()}).then(function(){loadLeds()}).catch(function(){toast('LED write failed')})}
+function sysInfo(){$('#sysinfo').textContent='loading…';
+  sysinfo().then(function(t){$('#sysinfo').textContent=t.trim()||'(no output)'}).catch(function(){$('#sysinfo').textContent='diagnostics unavailable'})}
+function runRaw(){var c=$('#rawcmd').value.trim();if(!c)return;var ex={};try{ex=$('#rawparams').value.trim()?JSON.parse($('#rawparams').value):{}}catch(e){$('#rawout').textContent='Bad JSON: '+e;return}
+  $('#rawout').textContent='…';api(c,ex).then(function(r){$('#rawout').textContent=JSON.stringify(r,null,2)}).catch(function(e){$('#rawout').textContent='Error: '+e})}
+function rebootApi(){if(confirm('Reboot modem via API?'))api('rebootcmd').then(function(){toast('Rebooting…')})}
+
+//// routing
+var cur='status',timer;
+function go(t){cur=t;['status','devices','sms','settings','root'].forEach(function(x){$('#tab-'+x).classList.toggle('hidden',x!==t)});
+  Array.prototype.forEach.call(document.querySelectorAll('#nav button'),function(b){b.classList.toggle('on',b.dataset.t===t)});
+  if(t==='status')drawStatus();if(t==='devices')drawDevices();if(t==='sms')drawSms();if(t==='settings')drawSettings();if(t==='root')drawRoot()}
+function showApp(){$('#login').classList.add('hidden');$('#app').classList.remove('hidden');$('#nav').classList.remove('hidden');refresh();go('status');clearInterval(timer);timer=setInterval(function(){if(cur==='status')refresh()},6000)}
+if(session){showApp()}
+$('#p').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin()});
+</script>
+</body>
+</html>

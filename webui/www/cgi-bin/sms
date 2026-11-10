@@ -1,0 +1,31 @@
+#!/data/local/tmp/webui/busybox sh
+# SMS reader CGI — requires a valid modem session. Reads Android SMS provider as root.
+BB=/data/local/tmp/webui/busybox
+export PATH=/data/local/tmp/webui:/system/bin:/system/xbin:$PATH
+auth=$HTTP_AUTHORIZATION
+
+printf 'Content-Type: application/json\r\n'
+printf 'Cache-Control: no-store\r\n\r\n'
+
+# --- authenticate ---
+chk='{"cmdid":"getsysinfo","sessionId":"'"$auth"'"}'
+resp=$( { printf 'POST /himiapi/json HTTP/1.0\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nAuthorization: %s\r\nContent-Length: %s\r\nConnection: close\r\n\r\n%s' "$auth" "${#chk}" "$chk"; } | $BB timeout 8 $BB nc 127.0.0.1 8000 2>/dev/null )
+case "$resp" in
+  ""|*SessionOut*|*'"reply":"error"'*) echo '{"error":"unauthorized","messages":[]}'; exit 0;;
+esac
+
+SIM=$(getprop gsm.sim.state 2>/dev/null)$(getprop gsm.sim.state1 2>/dev/null)
+sim=false
+case "$SIM" in *READY*|*LOADED*|*IMSI*) sim=true;; esac
+
+{ content query --uri content://sms --projection address:date:type:body 2>/dev/null
+  content query --uri content://sms/icc --projection address:date:type:body 2>/dev/null
+} | $BB awk -v sim="$sim" '
+  function val(s,key,nxt,  p,q){ p=index(s,key); if(p==0)return ""; p+=length(key);
+     if(nxt!=""){ q=index(substr(s,p),nxt); if(q>0) return substr(s,p,q-1) } return substr(s,p) }
+  function esc(v,  r){ r=v; gsub(/\\/,"\\\\",r); gsub(/"/,"\\\"",r); gsub(/\r/,"",r); gsub(/\n/,"\\n",r); gsub(/\t/,"\\t",r); return r }
+  BEGIN{ printf "{\"sim\":%s,\"messages\":[", (sim=="true"?"true":"false"); n=0 }
+  /^Row:/{ a=val($0,"address=",", date="); d=val($0,"date=",", type="); t=val($0,"type=",", body="); b=val($0,"body=","");
+     if(n++)printf ","; printf "{\"address\":\"%s\",\"date\":\"%s\",\"type\":\"%s\",\"body\":\"%s\"}", esc(a),esc(d),esc(t),esc(b) }
+  END{ printf "],\"count\":%d}", n }
+'

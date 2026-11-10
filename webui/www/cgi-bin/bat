@@ -1,0 +1,13 @@
+#!/data/local/tmp/webui/busybox sh
+# Battery level (root read). Requires a valid modem session.
+BB=/data/local/tmp/webui/busybox
+auth=$HTTP_AUTHORIZATION
+printf 'Content-Type: application/json\r\n'
+printf 'Cache-Control: no-store\r\n\r\n'
+chk='{"cmdid":"getsysinfo","sessionId":"'"$auth"'"}'
+resp=$( { printf 'POST /himiapi/json HTTP/1.0\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nAuthorization: %s\r\nContent-Length: %s\r\nConnection: close\r\n\r\n%s' "$auth" "${#chk}" "$chk"; } | $BB timeout 8 $BB nc 127.0.0.1 8000 2>/dev/null )
+case "$resp" in ""|*SessionOut*|*'"reply":"error"'*) echo '{"pct":null}'; exit 0;; esac
+B=/sys/class/power_supply/battery
+cap=$(cat $B/capacity 2>/dev/null)
+st=$(cat $B/status 2>/dev/null)
+printf '{"pct":%s,"status":"%s"}' "${cap:-null}" "${st:-}"

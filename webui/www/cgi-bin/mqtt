@@ -1,0 +1,27 @@
+#!/data/local/tmp/webui/busybox sh
+# MQTT broker status/control. Auth-gated. POST {"action":"start"|"stop"} (validated), GET = status.
+BB=/data/local/tmp/webui/busybox
+D=/data/local/tmp/webui
+auth=$HTTP_AUTHORIZATION
+printf 'Content-Type: application/json\r\n'
+printf 'Cache-Control: no-store\r\n\r\n'
+
+chk='{"cmdid":"getsysinfo","sessionId":"'"$auth"'"}'
+resp=$( { printf 'POST /himiapi/json HTTP/1.0\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nAuthorization: %s\r\nContent-Length: %s\r\nConnection: close\r\n\r\n%s' "$auth" "${#chk}" "$chk"; } | $BB timeout 8 $BB nc 127.0.0.1 8000 2>/dev/null )
+case "$resp" in ""|*SessionOut*|*'"reply":"error"'*) echo '{"error":"unauthorized"}'; exit 0;; esac
+
+if [ "$REQUEST_METHOD" = "POST" ]; then
+  len=${CONTENT_LENGTH:-0}; body=$($BB head -c "$len" 2>/dev/null)
+  act=$(printf '%s' "$body" | $BB sed -n 's/.*"action"[ :]*"\([a-z]*\)".*/\1/p')
+  if [ "$act" = "stop" ]; then
+    for p in $($BB pgrep -f mqttbroker); do kill "$p" 2>/dev/null; done
+  elif [ "$act" = "start" ]; then
+    $BB pgrep -f mqttbroker >/dev/null 2>&1 || $BB setsid "$D/mqttbroker" ":1883" ":9001" >/dev/null 2>&1 &
+  fi
+  $BB sleep 1
+fi
+
+run=0; $BB pgrep -f mqttbroker >/dev/null 2>&1 && run=1
+clients=$($BB netstat -tn 2>/dev/null | $BB grep -c ':1883 .*ESTABLISHED')
+lan=$($BB ip addr 2>/dev/null | $BB grep -oE '192\.168\.[0-9]+\.1' | $BB head -1)
+printf '{"running":%s,"tcp":1883,"ws":9001,"clients":%s,"host":"%s"}' "$run" "${clients:-0}" "${lan:-192.168.100.1}"
