@@ -39,6 +39,30 @@ broker/
   main.go / go.mod / go.sum # the MQTT broker (mochi-mqtt)
 ```
 
+## MQTT notification LED
+
+The router's charge LED is actually two LEDs — `bat1` (red) and `batl2` (green) under
+`/sys/class/leds/`. The broker repurposes them as a notify light:
+
+- **green** while at least one client is connected, **off** when none;
+- publish to the topic **`led`** to override it:
+  - `green` / `red` / `off` — solid colour (sticky; stays until you change it)
+  - `auto` — go back to the connected-clients behaviour
+  - `blink` / `alert` — flash red a few times, then return
+  - `ok` / `blink:green` — flash green
+- it never lights both channels at once (no yellow).
+
+A background ticker rewrites the chosen colour every ~1.5 s, because the firmware's own
+battery-charge driver keeps trying to take these LEDs back. The two paths and the topic are
+overridable with the `LED_RED`, `LED_GREEN`, and `LED_TOPIC` env vars. It's all in
+`broker/main.go` (a ~40-line mochi hook).
+
+```sh
+mosquitto_pub -h <router-ip> -t led -m red     # solid red alert
+mosquitto_pub -h <router-ip> -t led -m blink   # flash red, then back to normal
+mosquitto_pub -h <router-ip> -t led -m auto    # back to the connected-clients colour
+```
+
 ## Reproduce it yourself
 
 ### 0. What you need
