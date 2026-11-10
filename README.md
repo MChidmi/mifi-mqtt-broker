@@ -1,5 +1,9 @@
 # Pocket MQTT Broker — an old 4G MiFi router turned into a tiny always-on broker
 
+<p align="center">
+  <img src="docs/screenshots/device.jpg" width="320" alt="The pocket 4G MiFi router this runs on">
+</p>
+
 I had an old 4G MiFi hotspot in a drawer — the little kind with a built-in battery and its
 own Wi-Fi — and turned it into a self-contained **MQTT broker** for my home devices. No
 Raspberry Pi, no PC left running: it already has Wi-Fi, a battery so it rides through power
@@ -24,11 +28,11 @@ While it was in there it also:
 
 ## Screenshots
 
-| Status | Settings | Root tools |
-|---|---|---|
-| ![Status](docs/screenshots/status.png) | ![Settings](docs/screenshots/settings.png) | ![Root](docs/screenshots/root.png) |
+Real screenshots from the UI running on the router (device IDs blurred on the status page):
 
-_(screenshots taken from the UI running on the router — add your own in `docs/screenshots/`)_
+| MQTT broker | Battery care | System (root) | Status |
+|---|---|---|---|
+| ![MQTT broker](docs/screenshots/mqtt.jpg) | ![Battery care](docs/screenshots/battery.jpg) | ![System](docs/screenshots/system.jpg) | ![Status](docs/screenshots/status.png) |
 
 ## What it does
 
