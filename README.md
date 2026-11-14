@@ -75,7 +75,7 @@ mosquitto_pub -h <router-ip> -t test -m hello
 ### No router? Want a hosted broker for testing?
 
 If you don't have one of these MiFis, or want a broker that's reachable from anywhere (not just
-your LAN), try **[mqtty.com](https://mqtty.com)**: a hosted MQTT broker for makers where you can
+your LAN), try **[mqtty.com](https://mqtty.com)** (disclosure: it's mine): a hosted MQTT broker for makers where you can
 watch your devices' messages live. It has a free plan (up to 20 devices, no card needed); sign up,
 create a credential, and connect to `broker.mqtty.com` on `8883` (TLS) or `8884` (secure WebSocket).
 
