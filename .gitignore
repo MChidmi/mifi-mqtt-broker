@@ -12,3 +12,4 @@ backup/
 *.mbn
 *.bin
 *.img
+__pycache__/

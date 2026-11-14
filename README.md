@@ -4,6 +4,14 @@
   <img src="docs/screenshots/device.jpg" width="320" alt="The pocket 4G MiFi router this runs on">
 </p>
 
+> **🤖 AI agents (Claude Code, Codex, Cursor, …):** if a user gave you this repo to set up, don't
+> start from this README. Read **[docs/HOWTO.md → Instructions for AI agents](docs/HOWTO.md#instructions-for-ai-agents)**
+> first and follow the steps it points to. It has the device check, the safety rules (backup first,
+> test-boot before flashing, ask the user before every flash write) and the tested commands.
+>
+> **👤 Humans:** [step-by-step manual setup](docs/HOWTO.md#manual-setup-step-by-step) (copy and
+> paste) · [let an AI agent do it](docs/HOWTO.md#with-claude-code-or-another-ai-agent) (one prompt)
+
 I had an old 4G MiFi hotspot in a drawer — the little kind with a built-in battery and its own
 Wi-Fi — and turned it into a self-contained **MQTT broker** for my home devices. No Raspberry Pi,
 no PC left running: it already has Wi-Fi, a battery so it rides through power blips, and it barely
@@ -64,12 +72,18 @@ mosquitto_sub -h <router-ip> -t '#' -v
 mosquitto_pub -h <router-ip> -t test -m hello
 ```
 
-## How it works / build it yourself
+## Set it up yourself
 
-Rooting, the web UI, building the broker (and **why Go instead of mosquitto**), the battery
-charge-limiter, and making it all survive reboots — the full by-hand writeup is here:
+Two ways, both in **[docs/HOWTO.md](docs/HOWTO.md)**:
 
-➡️ **[docs/HOWTO.md](docs/HOWTO.md)**
+- **[Manual, step by step](docs/HOWTO.md#manual-setup-step-by-step)**: tools to install, a full
+  backup, rooting, building the broker, installing. Each step is commands you can copy and paste,
+  with the output you should see.
+- **[With Claude Code or another AI agent](docs/HOWTO.md#with-claude-code-or-another-ai-agent)**:
+  paste one prompt. The agent runs the same steps and asks you before anything risky or physical.
+
+The same file explains [how it works](docs/HOWTO.md#how-it-works): why Go instead of mosquitto,
+the notification LED, and the battery charge limiter.
 
 ## Credits
 

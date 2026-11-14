@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Modem</title>
+<title>4G Router / MQTT Broker</title>
 <style>
 :root{--bg:#0f1115;--card:#171a21;--card2:#1d212b;--line:#272c38;--fg:#e8ebf2;--mut:#9aa3b3;--acc:#4c8dff;--ok:#39c46e;--warn:#f5a623;--err:#ff5c5c}
 @media (prefers-color-scheme:light){:root{--bg:#f3f5f9;--card:#fff;--card2:#f6f8fc;--line:#e4e8f0;--fg:#141821;--mut:#5c6678;--acc:#2f6fed}}
@@ -64,7 +64,7 @@ nav button.on{color:var(--acc)}nav svg{width:21px;height:21px;stroke:currentColo
 <body>
 
 <section id="login">
-  <h1>Modem Console</h1>
+  <h1>4G Router / MQTT Broker</h1>
   <input id="u" placeholder="Username" autocomplete="username" value="admin">
   <input id="p" type="password" placeholder="Password" autocomplete="current-password">
   <div class="btn acc" onclick="doLogin()">Sign in</div>
@@ -177,12 +177,13 @@ var SECTIONS=[
 var SEC={}; // loaded data per section
 function dig(o,path){if(!path)return o;for(var i=0;i<path.length;i++){if(o==null)return null;o=o[path[i]]}return o}
 function isBool(v){return v===0||v===1||v==='0'||v==='1'||v===true||v===false}
+var TEXTKEY=/ssid|pass|pwd|psk|key|name|user|apn/i;
 function field(key,val,sel){
   if(sel){var opts=sel.map(function(o){return '<option value="'+esc(o[0])+'"'+(String(val)===String(o[0])?' selected':'')+'>'+esc(o[1])+'</option>'}).join('');
     return '<div class="f"><label>'+esc(humanize(key))+'</label><select data-k="'+esc(key)+'">'+opts+'</select></div>'}
   if(isBool(val)){var on=(val==='1'||val===1||val===true);
     return '<div class="f sw"><label style="margin:0">'+esc(humanize(key))+'</label><input type="checkbox" data-k="'+esc(key)+'" data-bool="1" '+(on?'checked':'')+'></div>'}
-  var num=(typeof val==='number')||(/^-?\d+$/.test(String(val)));
+  var num=(typeof val==='number')&&!TEXTKEY.test(key);
   return '<div class="f"><label>'+esc(humanize(key))+'</label><input type="'+(num?'number':'text')+'" data-k="'+esc(key)+'" value="'+esc(val)+'"></div>'
 }
 function drawSettings(){
@@ -261,7 +262,8 @@ function coerce(orig,inp){
     return inp.checked?'1':'0';            // preserve "0"/"1" string style
   }
   var v=inp.value;
-  if(typeof orig==='number')return v===''?orig:(/\./.test(v)?parseFloat(v):parseInt(v,10));
+  if(typeof orig==='number'&&/^-?\d+(\.\d+)?$/.test(v.trim()))return /\./.test(v)?parseFloat(v):parseInt(v,10);
+  if(typeof orig==='number'&&v==='')return orig;
   return v;
 }
 function saveSec(id){
@@ -281,25 +283,15 @@ function drawRoot(){
   $('#tab-root').innerHTML=
    '<div class="card"><h2>System (root)</h2><div id="sysinfo" class="term" style="margin:12px 16px">loading…</div>'+
      '<div class="row"><button class="btn" onclick="sysInfo()">Refresh</button></div></div>'+
-   '<div class="card"><h2>LED Test</h2>'+
-     '<div class="note" style="padding:10px 16px 0">Toggle the indicator LEDs. The firmware re-drives them on network / charge changes, so changes may not stick.</div>'+
-     '<div id="ledlist"><div class="empty"><span class="spin"></span></div></div>'+
-     '<div class="row"><button class="btn" onclick="loadLeds()">Refresh</button></div></div>'+
    '<div class="card"><h2>MQTT Broker</h2><div id="mqttbox"><div class="empty"><span class="spin"></span></div></div>'+
      '<div class="row"><button class="btn acc" onclick="mqttAction(\'start\')">Start</button><button class="btn" onclick="mqttAction(\'stop\')">Stop</button><button class="btn" onclick="loadMqtt()">Refresh</button></div></div>'+
    '<div class="card"><h2>Notification LED</h2>'+
      '<div class="f sw" style="padding:14px 16px 4px"><label style="margin:0">Use battery LED for MQTT notifications</label><input type="checkbox" id="led_en" onchange="ledCfgToggle()"></div>'+
      '<div class="note" style="padding:0 16px 12px">On: flashes <b>red</b> on message traffic (either direction) and glows green while a client is connected. Off: the LED shows battery charge as normal.</div></div>'+
-   '<div class="card"><h2>Raw API Console</h2>'+
-     '<div class="note" style="padding:10px 16px 0">Send any modem command. Params is JSON merged into the request (e.g. for change password: cmdid <b>changepwd</b>, params <code>{"params":{"oldpwd":"x","newpwd":"y"}}</code>).</div>'+
-     '<div class="f" style="padding:0 16px"><label>cmdid</label><input id="rawcmd" type="text" placeholder="getapninfo"></div>'+
-     '<div class="f" style="padding:0 16px"><label>extra JSON (optional)</label><textarea id="rawparams" placeholder="{}"></textarea></div>'+
-     '<div class="row"><button class="btn acc" onclick="runRaw()">Send</button></div>'+
-     '<div id="rawout" class="term">(response here)</div></div>'+
    '<div class="card"><h2>Power</h2><div class="row">'+
      '<button class="btn danger" onclick="rebootApi()">Reboot modem</button>'+
      '<button class="btn" onclick="logout()">Sign out</button></div></div>';
-  sysInfo();loadLeds();loadMqtt();loadLedCfg();
+  sysInfo();loadMqtt();loadLedCfg();
 }
 function loadLedCfg(){fetch('cgi-bin/ledcfg',{headers:{'Authorization':session}}).then(function(r){return r.json()}).then(function(d){var el=$('#led_en');if(el&&d&&d.enabled!=null)el.checked=String(d.enabled)==='1'}).catch(function(){})}
 function ledCfgToggle(){var on=$('#led_en').checked?1:0;fetch('cgi-bin/ledcfg',{method:'POST',headers:{'Authorization':session,'Content-Type':'application/json'},body:JSON.stringify({enabled:on})}).then(function(r){return r.json()}).then(function(d){toast(String(d.enabled)==='1'?'LED: MQTT notifications':'LED: battery charge')}).catch(function(){toast('Failed')})}
@@ -313,19 +305,8 @@ function loadMqtt(){fetch('cgi-bin/mqtt',{headers:{'Authorization':session}}).th
     '<div class="note" style="padding:10px 16px 2px">Point local devices at <b>mqtt://'+esc(d.host)+':'+esc(d.tcp)+'</b> (no auth, LAN only). Browser/JS clients use ws://'+esc(d.host)+':'+esc(d.ws)+'.</div>';
 }).catch(function(){$('#mqttbox').innerHTML='<div class="empty">unavailable</div>'})}
 function mqttAction(a){fetch('cgi-bin/mqtt',{method:'POST',headers:{'Authorization':session,'Content-Type':'application/json'},body:JSON.stringify({action:a})}).then(function(r){return r.json()}).then(function(){loadMqtt();toast('MQTT '+a)}).catch(function(){toast('MQTT '+a+' failed')})}
-function loadLeds(){fetch('cgi-bin/led',{headers:{'Authorization':session}}).then(function(r){return r.json()}).then(function(d){
-  var leds=(d&&d.leds)||[];
-  var rows=leds.map(function(l){var on=l.brightness>0;
-    return '<div class="dev"><div style="flex:1"><div class="nm">'+esc(l.name)+'</div><div class="meta">'+(on?'on':'off')+' · '+esc(l.brightness)+'/'+esc(l.max)+'</div></div>'+
-      '<button class="btn" style="flex:0;min-width:52px" onclick="ledSet(\''+esc(l.name)+'\','+(l.max||255)+')">On</button>'+
-      '<button class="btn" style="flex:0;min-width:52px;margin-left:6px" onclick="ledSet(\''+esc(l.name)+'\',0)">Off</button></div>'}).join('');
-  $('#ledlist').innerHTML=rows||'<div class="empty">no LEDs</div>';
-}).catch(function(){$('#ledlist').innerHTML='<div class="empty">unavailable</div>'})}
-function ledSet(n,v){fetch('cgi-bin/led',{method:'POST',headers:{'Authorization':session,'Content-Type':'application/json'},body:JSON.stringify({led:n,value:v})}).then(function(r){return r.json()}).then(function(){loadLeds()}).catch(function(){toast('LED write failed')})}
 function sysInfo(){$('#sysinfo').textContent='loading…';
   sysinfo().then(function(t){$('#sysinfo').textContent=t.trim()||'(no output)'}).catch(function(){$('#sysinfo').textContent='diagnostics unavailable'})}
-function runRaw(){var c=$('#rawcmd').value.trim();if(!c)return;var ex={};try{ex=$('#rawparams').value.trim()?JSON.parse($('#rawparams').value):{}}catch(e){$('#rawout').textContent='Bad JSON: '+e;return}
-  $('#rawout').textContent='…';api(c,ex).then(function(r){$('#rawout').textContent=JSON.stringify(r,null,2)}).catch(function(e){$('#rawout').textContent='Error: '+e})}
 function rebootApi(){if(confirm('Reboot modem via API?'))api('rebootcmd').then(function(){toast('Rebooting…')})}
 
 //// routing
